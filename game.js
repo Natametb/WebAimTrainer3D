@@ -1,103 +1,76 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-console.log("Game Script Loaded - Level Selection Update");
+console.log("Game Script Loaded - Stable Version");
 
-// --- Configuration ---
-
-// Click Timing Levels
+// --- CONFIG ---
 const CLICK_LEVELS = [
-    { id: 'c1', name: "Static", desc: "Aim for the HEAD!", targets: 30, time: 30, behavior: 'static', size: 1.5, hp: 1 },
-    { id: 'c2', name: "Moving", desc: "Horizontal movement.", targets: 45, time: 45, behavior: 'horizontal', speed: 3, size: 1.5, hp: 1 },
-    { id: 'c3', name: "Bounce", desc: "Bouncing off walls.", targets: 45, time: 45, behavior: 'bounce', speed: 5, size: 1.4, hp: 1 },
-    { id: 'c4', name: "Shrink", desc: "Targets get smaller.", targets: 50, time: 40, behavior: 'shrink', shrinkRate: 0.3, size: 1.8, hp: 1 },
-    { id: 'c5', name: "Chaos", desc: "Fast and unpredictable.", targets: 60, time: 50, behavior: 'chaos', speed: 8, size: 1.2, hp: 1 }
+    { id: 'c1', name: "Level 1: Static", targets: 30, time: 30, behavior: 'static', size: 1.5, hp: 1 },
+    { id: 'c2', name: "Level 2: Moving", targets: 45, time: 45, behavior: 'horizontal', speed: 3, size: 1.5, hp: 1 },
+    { id: 'c3', name: "Level 3: Bounce", targets: 45, time: 45, behavior: 'bounce', speed: 5, size: 1.4, hp: 1 },
+    { id: 'c4', name: "Level 4: Shrink", targets: 50, time: 40, behavior: 'shrink', shrinkRate: 0.3, size: 1.8, hp: 1 },
+    { id: 'c5', name: "Level 5: Chaos", targets: 60, time: 50, behavior: 'chaos', speed: 8, size: 1.2, hp: 1 }
 ];
 
-// Tracking Levels
 const TRACKING_LEVELS = [
-    { id: 't1', name: "Linear Strafe", desc: "Smooth horizontal tracking.", targets: 3, time: 60, behavior: 'track_linear', speed: 2, size: 1.8, hp: 5.0 },
-    { id: 't2', name: "Sine Wave", desc: "Curved movement patterns.", targets: 3, time: 60, behavior: 'track_sine', speed: 2, size: 1.6, hp: 6.0 },
-    { id: 't3', name: "Orbit", desc: "Circular motion.", targets: 3, time: 60, behavior: 'track_circle', speed: 2.5, size: 1.6, hp: 6.0 },
-    { id: 't4', name: "Stop & Go", desc: "Fast bursts then stops.", targets: 4, time: 60, behavior: 'track_stopgo', speed: 5, size: 1.8, hp: 5.0 },
-    { id: 't5', name: "Jitter", desc: "Erratic shaking movement.", targets: 5, time: 70, behavior: 'track_jitter', speed: 3.5, size: 1.5, hp: 5.0 }
+    { id: 't1', name: "Level 1: Linear", targets: 3, time: 60, behavior: 'track_linear', speed: 2, size: 1.8, hp: 5.0 },
+    { id: 't2', name: "Level 2: Sine", targets: 3, time: 60, behavior: 'track_sine', speed: 2, size: 1.6, hp: 6.0 },
+    { id: 't3', name: "Level 3: Orbit", targets: 3, time: 60, behavior: 'track_circle', speed: 2.5, size: 1.6, hp: 6.0 },
+    { id: 't4', name: "Level 4: Stop/Go", targets: 4, time: 60, behavior: 'track_stopgo', speed: 5, size: 1.8, hp: 5.0 },
+    { id: 't5', name: "Level 5: Jitter", targets: 5, time: 70, behavior: 'track_jitter', speed: 3.5, size: 1.5, hp: 5.0 }
 ];
 
-// Global State
-let currentMode = ''; 
-let currentLevelConfig = null;
+// --- GLOBAL VARS ---
+let currentMode = 'menu';
+let currentConfig = null;
 let targetsLeft = 0;
 let timeLeft = 0;
-let totalTime = 0; 
-let isPlaying = false;
-let isPaused = false;
-let lastTime = 0;
 let targets = [];
+let animationId = null;
+let lastTime = 0;
+let isWaitingForClick = false;
 
-const SPAWN_AREA_WIDTH = 35;
-const SPAWN_AREA_HEIGHT = 16;
-const SPAWN_DISTANCE = 25;
-const SPAWN_Y_OFFSET = 5;
-
-// --- DOM Elements ---
 const getEl = (id) => document.getElementById(id);
-const menuEl = getEl('menu');
-const subTitleEl = getEl('sub-title');
-const hudEl = getEl('hud');
-const trackingHud = getEl('tracking-hud');
-const trackBarFill = getEl('track-bar-fill');
 
-const modeSelection = getEl('mode-selection');
-const levelSelection = getEl('level-selection');
-const pauseMenu = getEl('pause-menu');
-const settingsPanel = getEl('settings-panel');
+// --- UI ELEMENTS ---
+const ui = {
+    menu: getEl('menu'),
+    hud: getEl('hud'),
+    modeSel: getEl('mode-selection'),
+    levelSel: getEl('level-selection'),
+    pauseMenu: getEl('pause-menu'),
+    settingsPanel: getEl('settings-panel'),
+    trackingHud: getEl('tracking-hud'),
+    trackBar: getEl('track-bar-fill'),
+    overlay: null // Click to start
+};
 
-const modeDisplayEl = getEl('mode-display');
-const timerEl = getEl('timer');
-const targetsLeftEl = getEl('targets-left');
-const bestTimeEl = getEl('best-time');
-const sensSlider = getEl('sens-slider');
-const sensValueEl = getEl('sens-value');
+// Create Click Overlay
+const overlay = document.createElement('div');
+overlay.innerText = "CLICK TO START";
+overlay.style.cssText = "position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:40px;font-weight:bold;display:none;pointer-events:none;z-index:999;text-shadow:0 0 10px black;";
+document.body.appendChild(overlay);
+ui.overlay = overlay;
 
-const modeClickCampaignBtn = getEl('mode-click-campaign-btn');
-const modeTrackCampaignBtn = getEl('mode-track-campaign-btn');
-const selectLevelBtn = getEl('select-level-btn');
-const tabClickBtn = getEl('tab-click');
-const tabTrackBtn = getEl('tab-track');
-
-const settingsBtn = getEl('settings-btn');
-const backToMainBtn = getEl('back-to-main-btn');
-const resumeBtn = getEl('resume-btn');
-const restartBtn = getEl('restart-btn');
-const quitBtn = getEl('quit-btn');
-const closeSettingsBtn = getEl('close-settings-btn');
-const levelBtns = document.querySelectorAll('.level-btn');
-
-
-// --- Three.js Setup ---
+// --- THREE JS ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a);
-
-const gridHelper = new THREE.GridHelper(100, 100, 0x333333, 0x111111);
-gridHelper.position.y = -6;
-scene.add(gridHelper);
-
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-scene.add(ambientLight);
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-dirLight.position.set(5, 10, 7);
-scene.add(dirLight);
+const grid = new THREE.GridHelper(100, 100, 0x333333, 0x111111);
+grid.position.y = -6;
+scene.add(grid);
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dl = new THREE.DirectionalLight(0xffffff, 0.8);
+dl.position.set(5,10,7);
+scene.add(dl);
 
 const controls = new PointerLockControls(camera, document.body);
-controls.pointerSpeed = 1.0;
-
 const raycaster = new THREE.Raycaster();
-const center = new THREE.Vector2(0, 0);
+const center = new THREE.Vector2(0,0);
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSound(type) {
@@ -106,558 +79,322 @@ function playSound(type) {
     const gain = audioCtx.createGain();
     osc.connect(gain);
     gain.connect(audioCtx.destination);
-
-    if (type === 'hit') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.1);
-    } else if (type === 'headshot') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(2000, audioCtx.currentTime + 0.05);
-        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.2);
-    } else if (type === 'tick') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.05);
-    } else if (type === 'win') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.1);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
-    }
-}
-
-function getBestScore(levelId) {
-    const score = localStorage.getItem(`best_${levelId}`);
-    return score ? parseFloat(score) : null;
-}
-
-function saveScore(levelId, timeTaken) {
-    const currentBest = getBestScore(levelId);
-    if (currentBest === null || timeTaken < currentBest) {
-        localStorage.setItem(`best_${levelId}`, timeTaken.toFixed(2));
-        return true; 
-    }
-    return false;
-}
-
-function showPanel(panel) {
-    [modeSelection, levelSelection, pauseMenu, settingsPanel].forEach(p => p.classList.add('hidden'));
-    panel.classList.remove('hidden');
-}
-
-function initMenu() {
-    menuEl.classList.remove('hidden');
-    hudEl.classList.add('hidden');
-    trackingHud.classList.add('hidden');
-    isPlaying = false;
-    isPaused = false;
-    controls.unlock();
-    subTitleEl.innerText = "Select Training Mode";
-    showPanel(modeSelection);
+    const now = audioCtx.currentTime;
     
+    if (type === 'hit') { osc.frequency.setValueAtTime(800, now); gain.gain.setTargetAtTime(0, now, 0.1); }
+    else if (type === 'head') { osc.type='triangle'; osc.frequency.setValueAtTime(1200, now); gain.gain.setTargetAtTime(0, now, 0.2); }
+    else if (type === 'win') { osc.type='triangle'; osc.frequency.setValueAtTime(400, now); gain.gain.setTargetAtTime(0, now, 0.3); }
+    
+    osc.start(); osc.stop(now + 0.3);
+}
+
+// --- CORE GAMEPLAY ---
+
+function prepareLevel(config) {
+    console.log("Preparing Level:", config.name);
+    if (animationId) cancelAnimationFrame(animationId);
+    
+    // Reset Vars
     targets.forEach(t => scene.remove(t));
     targets = [];
-}
-
-function updateLevelButtons(mode) {
-    const levels = mode === 'click' ? CLICK_LEVELS : TRACKING_LEVELS;
-    
-    // Update Tabs UI
-    if (mode === 'click') {
-        tabClickBtn.classList.add('active');
-        tabTrackBtn.classList.remove('active');
-    } else {
-        tabClickBtn.classList.remove('active');
-        tabTrackBtn.classList.add('active');
-    }
-
-    levelBtns.forEach((btn, index) => {
-        if (levels[index]) {
-            const best = getBestScore(levels[index].id);
-            const scoreText = best ? `(Best: ${best}s)` : "";
-            btn.innerText = `${index + 1}. ${levels[index].name} ${scoreText}`;
-            btn.classList.remove('hidden');
-        } else {
-            btn.classList.add('hidden');
-        }
-    });
-    subTitleEl.innerText = mode === 'click' ? "Click Timing Levels" : "Tracking Levels";
-}
-
-// --- Event Listeners ---
-
-modeClickCampaignBtn.addEventListener('click', () => {
-    currentMode = 'click';
-    startGame(CLICK_LEVELS[0], 'click');
-});
-
-modeTrackCampaignBtn.addEventListener('click', () => {
-    currentMode = 'track';
-    startGame(TRACKING_LEVELS[0], 'track');
-});
-
-// Select Level Button logic
-selectLevelBtn.addEventListener('click', () => {
-    currentMode = 'click'; // Default to click tab
-    updateLevelButtons('click');
-    showPanel(levelSelection);
-});
-
-// Tab Switchers
-tabClickBtn.addEventListener('click', () => {
-    currentMode = 'click';
-    updateLevelButtons('click');
-});
-
-tabTrackBtn.addEventListener('click', () => {
-    currentMode = 'track';
-    updateLevelButtons('track');
-});
-
-settingsBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    settingsPanel.classList.remove('hidden');
-});
-
-backToMainBtn.addEventListener('click', () => {
-    subTitleEl.innerText = "Select Training Mode";
-    showPanel(modeSelection);
-});
-
-levelBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        const index = parseInt(btn.dataset.level);
-        const config = currentMode === 'click' ? CLICK_LEVELS[index] : TRACKING_LEVELS[index];
-        startGame(config, currentMode);
-    });
-});
-
-closeSettingsBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    settingsPanel.classList.add('hidden');
-});
-
-sensSlider.addEventListener('input', (e) => {
-    const val = parseFloat(e.target.value);
-    controls.pointerSpeed = val;
-    sensValueEl.innerText = val.toFixed(1);
-    localStorage.setItem('aimTrainerSensitivity', val);
-});
-
-controls.addEventListener('unlock', () => {
-    if (isPlaying && !isPaused) {
-        pauseGame();
-    }
-});
-
-resumeBtn.addEventListener('click', () => {
-    if (resumeBtn.innerText.includes("Next Level")) {
-        let levels = currentMode === 'click' ? CLICK_LEVELS : TRACKING_LEVELS;
-        let currentIndex = levels.indexOf(currentLevelConfig);
-        if (currentIndex < levels.length - 1) {
-            startGame(levels[currentIndex + 1], currentMode);
-        }
-    } else {
-        isPaused = false;
-        menuEl.classList.add('hidden');
-        controls.lock();
-        lastTime = performance.now();
-    }
-});
-
-restartBtn.addEventListener('click', () => {
-    startGame(currentLevelConfig, currentMode);
-});
-
-quitBtn.addEventListener('click', () => {
-    initMenu();
-});
-
-
-function pauseGame() {
-    isPaused = true;
-    document.exitPointerLock();
-    menuEl.classList.remove('hidden');
-    showPanel(pauseMenu);
-    
-    const title = pauseMenu.querySelector('h2');
-    title.innerText = "PAUSED";
-    title.style.color = "gold";
-    
-    resumeBtn.classList.remove('hidden');
-    resumeBtn.innerText = "▶ Resume";
-    restartBtn.classList.remove('hidden');
-    quitBtn.classList.remove('hidden');
-
-    const scoreDisplay = pauseMenu.querySelector('.score-display');
-    if(scoreDisplay) scoreDisplay.remove();
-}
-
-
-function startGame(config, mode) {
-    currentLevelConfig = config;
-    
-    resumeBtn.innerText = "▶ Resume";
-
-    isPlaying = true;
-    isPaused = false;
+    currentConfig = config;
     targetsLeft = config.targets;
     timeLeft = config.time;
-    totalTime = config.time;
     
-    menuEl.classList.add('hidden');
-    hudEl.classList.remove('hidden');
+    // UI
+    ui.menu.classList.add('hidden');
+    ui.hud.classList.remove('hidden');
     
-    modeDisplayEl.innerText = config.name;
-    targetsLeftEl.innerText = targetsLeft;
-    timerEl.innerText = timeLeft.toFixed(2);
+    getEl('mode-display').innerText = config.name;
+    getEl('targets-left').innerText = targetsLeft;
+    getEl('timer').innerText = timeLeft.toFixed(2);
     
-    const best = getBestScore(config.id);
-    bestTimeEl.innerText = best ? `${best}s` : "-";
+    const best = localStorage.getItem(`best_${config.id}`);
+    getEl('best-time').innerText = best ? `${best}s` : '-';
 
-    if (mode === 'track') {
-        trackingHud.classList.remove('hidden');
-        trackBarFill.style.width = '100%';
+    if (config.behavior.startsWith('track')) {
+        ui.trackingHud.classList.remove('hidden');
+        ui.trackBar.style.width = '100%';
+        spawnTarget();
     } else {
-        trackingHud.classList.add('hidden');
+        ui.trackingHud.classList.add('hidden');
+        for(let i=0; i<4; i++) spawnTarget();
     }
-    
-    targets.forEach(t => scene.remove(t));
-    targets = [];
-    
-    if (mode === 'track') spawnTarget();
-    else for(let i=0; i<4; i++) spawnTarget();
 
-    controls.lock();
+    // Wait for click
+    isWaitingForClick = true;
+    ui.overlay.style.display = 'block';
+    currentMode = 'waiting';
+    
     lastTime = performance.now();
-    requestAnimationFrame(animate);
+    animate();
 }
 
 function spawnTarget() {
-    if (targetsLeft <= 0) return;
-    const config = currentLevelConfig;
-    
+    const config = currentConfig;
     const group = new THREE.Group();
-
-    let color = 0x00ffff;
-    if (currentMode === 'track') color = 0x00ff00;
-    else if (config.behavior === 'chaos') color = 0xff0000;
-
-    const bodyGeo = new THREE.CapsuleGeometry(config.size * 0.6, config.size * 0.8, 4, 8);
-    const bodyMat = new THREE.MeshStandardMaterial({ 
-        color: color, roughness: 0.3, metalness: 0.4,
-        emissive: color, emissiveIntensity: 0.3
-    });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = 0;
-    body.name = "body";
+    
+    const mat = new THREE.MeshStandardMaterial({ color: config.behavior.startsWith('track') ? 0x00ff00 : 0x00ffff });
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(config.size*0.6, config.size, 4, 8), mat);
+    body.name = 'body';
     group.add(body);
-
-    const headSize = config.size * 0.4;
-    const headGeo = new THREE.SphereGeometry(headSize, 16, 16);
-    const headMat = new THREE.MeshStandardMaterial({
-        color: 0xffaa00, roughness: 0.2, metalness: 0.6, 
-        emissive: 0xff4400, emissiveIntensity: 0.5
-    });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = (config.size * 0.8) / 2 + headSize * 0.8;
-    head.name = "head";
+    
+    const head = new THREE.Mesh(new THREE.SphereGeometry(config.size*0.4), new THREE.MeshStandardMaterial({color: 0xffaa00}));
+    head.position.y = config.size * 0.8;
+    head.name = 'head';
     group.add(head);
-
-    group.position.x = (Math.random() - 0.5) * (SPAWN_AREA_WIDTH * 0.8);
-    group.position.y = ((Math.random() - 0.5) * (SPAWN_AREA_HEIGHT * 0.8)) + SPAWN_Y_OFFSET;
-    group.position.z = -SPAWN_DISTANCE;
-
+    
+    group.position.set((Math.random()-0.5)*25, (Math.random()-0.5)*10+5, -25);
     group.userData = { 
-        velocity: new THREE.Vector3(0, 0, 0),
-        hp: config.hp,
-        maxHp: config.hp,
-        timeOffset: Math.random() * 100,
-        state: 'move',
-        stateTimer: 0
+        hp: config.hp, maxHp: config.hp, 
+        velocity: new THREE.Vector3(config.speed * (Math.random()<0.5?1:-1), 0, 0),
+        timeOffset: Math.random()*100 
     };
-
-    if (config.behavior === 'horizontal') {
-        group.userData.velocity.x = (Math.random() < 0.5 ? 1 : -1) * config.speed;
-    } else if (config.behavior === 'bounce' || config.behavior === 'chaos') {
-        const angle = Math.random() * Math.PI * 2;
-        group.userData.velocity.x = Math.cos(angle) * config.speed;
-        group.userData.velocity.y = Math.sin(angle) * config.speed;
+    
+    if (config.behavior === 'bounce') {
+        const a = Math.random()*Math.PI*2;
+        group.userData.velocity.set(Math.cos(a), Math.sin(a), 0).multiplyScalar(config.speed);
     }
-
+    
     scene.add(group);
     targets.push(group);
-    
-    if (currentMode === 'track') trackBarFill.style.width = '100%';
+    if (config.behavior.startsWith('track')) ui.trackBar.style.width = '100%';
 }
 
-function checkClickHit() {
-    if (!isPlaying || isPaused || currentMode === 'track') return;
-    
-    raycaster.setFromCamera(center, camera);
-    const targetMeshes = [];
-    targets.forEach(g => {
-        targetMeshes.push(...g.children);
-    });
-
-    const intersects = raycaster.intersectObjects(targetMeshes);
-
-    if (intersects.length > 0) {
-        const hitMesh = intersects[0].object;
-        const hitGroup = hitMesh.parent;
-        
-        if (hitMesh.name === 'head') {
-            playSound('headshot');
-            destroyTarget(hitGroup);
-        } else {
-            destroyTarget(hitGroup);
-        }
-    }
-}
-
-function destroyTarget(targetGroup) {
-    scene.remove(targetGroup);
-    targets = targets.filter(t => t !== targetGroup);
+function destroyTarget(group) {
+    scene.remove(group);
+    targets = targets.filter(t => t !== group);
     targetsLeft--;
-    targetsLeftEl.innerText = targetsLeft;
+    getEl('targets-left').innerText = targetsLeft;
     
-    if (currentMode === 'click') {
-         // Sound is handled directly in checkClickHit for now.
-    }
-
-    if (targetsLeft === 0) {
+    if (!currentConfig.behavior.startsWith('track')) playSound('hit');
+    
+    if (targetsLeft <= 0) {
         endGame(true);
     } else {
-        if (currentMode === 'track' || targets.length < 4) {
-            spawnTarget();
+        if (currentConfig.behavior.startsWith('track')) spawnTarget();
+        else if (targets.length < 4) spawnTarget();
+    }
+}
+
+function update(delta, time) {
+    const config = currentConfig;
+    
+    // Tracking Damage
+    if (config.behavior.startsWith('track') && targets.length > 0) {
+        raycaster.setFromCamera(center, camera);
+        let meshes = [];
+        targets.forEach(g => meshes.push(...g.children));
+        const hits = raycaster.intersectObjects(meshes);
+        if (hits.length > 0) {
+            const hit = hits[0];
+            const t = hit.object.parent;
+            let dmg = delta;
+            if (hit.object.name === 'head') { dmg *= 3; hit.object.material.emissive.setHex(0xffffff); }
+            else hit.object.material.emissive.setHex(0x555555);
+            
+            t.userData.hp -= dmg;
+            ui.trackBar.style.width = `${Math.max(0, (t.userData.hp/t.userData.maxHp)*100)}%`;
+            if (t.userData.hp <= 0) destroyTarget(t);
+        } else {
+            meshes.forEach(m => m.material.emissive.setHex(0));
         }
     }
+    
+    // Movement
+    targets.forEach(g => {
+        const tOffset = g.userData.timeOffset + time/1000;
+        const speed = config.speed;
+        
+        if (config.behavior === 'track_linear') g.position.x = Math.sin(tOffset*speed)*10;
+        else if (config.behavior === 'track_sine') { g.position.x = Math.sin(tOffset*speed)*10; g.position.y = Math.cos(tOffset*speed*0.7)*5+5; }
+        else if (config.behavior === 'track_circle') { g.position.x = Math.cos(tOffset*speed)*8; g.position.y = Math.sin(tOffset*speed)*8+5; }
+        else if (config.behavior === 'track_stopgo') { if(Math.sin(tOffset*speed)>0) g.position.x += Math.sin(tOffset*speed*2)*delta*5; }
+        else if (config.behavior === 'track_jitter') { g.position.x = Math.sin(tOffset*speed)*8 + (Math.random()-0.5); g.position.y = Math.cos(tOffset*speed*0.5)*4+5+(Math.random()-0.5); }
+        else if (config.behavior === 'horizontal') {
+            g.position.x += g.userData.velocity.x * delta;
+            if (Math.abs(g.position.x)>15) g.userData.velocity.x *= -1;
+        }
+        else if (config.behavior === 'bounce') {
+            g.position.addScaledVector(g.userData.velocity, delta);
+            if (Math.abs(g.position.x)>15) g.userData.velocity.x *= -1;
+            if (g.position.y>13 || g.position.y<-3) g.userData.velocity.y *= -1;
+        }
+        else if (config.behavior === 'shrink') {
+            const s = Math.max(0.2, g.scale.x - delta*config.shrinkRate);
+            g.scale.set(s,s,s);
+        }
+    });
+}
+
+function animate() {
+    animationId = requestAnimationFrame(animate);
+    if (currentMode === 'waiting') { renderer.render(scene, camera); return; }
+    if (currentMode !== 'playing') return;
+    
+    const time = performance.now();
+    const delta = (time - lastTime) / 1000;
+    lastTime = time;
+    
+    timeLeft -= delta;
+    getEl('timer').innerText = Math.max(0, timeLeft).toFixed(2);
+    
+    if (timeLeft <= 0) endGame(false);
+    else update(delta, time);
+    
+    renderer.render(scene, camera);
+}
+
+// --- MENUS ---
+
+function showMenu(panelId) {
+    ui.menu.classList.remove('hidden');
+    [ui.modeSel, ui.levelSel, ui.pauseMenu, ui.settingsPanel].forEach(p => p.classList.add('hidden'));
+    getEl(panelId).classList.remove('hidden');
 }
 
 function endGame(win) {
-    isPlaying = false;
+    currentMode = 'end';
     controls.unlock();
-    menuEl.classList.remove('hidden');
-    showPanel(pauseMenu);
-
-    const title = pauseMenu.querySelector('h2');
+    showMenu('pause-menu');
     
-    resumeBtn.classList.add('hidden');
-    restartBtn.classList.remove('hidden');
-    quitBtn.classList.remove('hidden');
-
+    const h2 = ui.pauseMenu.querySelector('h2');
+    h2.innerText = win ? "VICTORY!" : "FAILED";
+    h2.style.color = win ? "#00ff00" : "#ff0000";
+    
+    const btnResume = getEl('resume-btn');
+    btnResume.classList.add('hidden');
+    
     if (win) {
         playSound('win');
-        const timeTaken = totalTime - timeLeft;
-        const isNewRecord = saveScore(currentLevelConfig.id, timeTaken);
+        const taken = currentConfig.time - timeLeft;
+        const old = localStorage.getItem(`best_${currentConfig.id}`);
+        if (!old || taken < parseFloat(old)) localStorage.setItem(`best_${currentConfig.id}`, taken.toFixed(2));
         
-        let msg = `Time: ${timeTaken.toFixed(2)}s`;
-        if (isNewRecord) msg += " (NEW RECORD!)";
-        
-        title.innerText = "VICTORY!";
-        title.style.color = "#00ff00";
-        
-        let scoreDisplay = pauseMenu.querySelector('.score-display');
-        if (!scoreDisplay) {
-            scoreDisplay = document.createElement('p');
-            scoreDisplay.className = 'score-display';
-            scoreDisplay.style.fontSize = '24px';
-            scoreDisplay.style.color = '#fff';
-            pauseMenu.insertBefore(scoreDisplay, resumeBtn);
-        }
-        scoreDisplay.innerText = msg;
-        
-        let levels = currentMode === 'click' ? CLICK_LEVELS : TRACKING_LEVELS;
-        let currentIndex = levels.indexOf(currentLevelConfig);
-        
-        if (currentIndex < levels.length - 1) {
-            resumeBtn.classList.remove('hidden');
-            resumeBtn.innerText = "▶ Next Level";
+        // Next Level Logic
+        const levels = CLICK_LEVELS.includes(currentConfig) ? CLICK_LEVELS : TRACKING_LEVELS;
+        const idx = levels.indexOf(currentConfig);
+        if (idx < levels.length - 1) {
+            btnResume.classList.remove('hidden');
+            btnResume.innerText = "▶ Next Level";
+            btnResume.onclick = () => prepareLevel(levels[idx + 1]);
         } else {
-            title.innerText = "CAMPAIGN COMPLETE!";
-            title.style.color = "gold";
+            h2.innerText = "CAMPAIGN COMPLETE!";
         }
-    } else {
-        title.innerText = "FAILED";
-        title.style.color = "#ff0000";
-        const scoreDisplay = pauseMenu.querySelector('.score-display');
-        if(scoreDisplay) scoreDisplay.innerText = "Time ran out!";
     }
 }
 
+// --- EVENTS ---
+
 document.addEventListener('mousedown', () => {
-    if (controls.isLocked) {
-        checkClickHit();
-        camera.position.y += 0.05;
-        setTimeout(() => camera.position.y -= 0.05, 50);
+    if (currentMode === 'waiting') {
+        currentMode = 'playing';
+        ui.overlay.style.display = 'none';
+        controls.lock();
+        lastTime = performance.now();
+    } else if (currentMode === 'playing' && !currentConfig.behavior.startsWith('track')) {
+        raycaster.setFromCamera(center, camera);
+        let meshes = [];
+        targets.forEach(g => meshes.push(...g.children));
+        const hits = raycaster.intersectObjects(meshes);
+        if (hits.length > 0) {
+            const hit = hits[0];
+            const isHead = hit.object.name === 'head';
+            playSound(isHead ? 'head' : 'hit');
+            destroyTarget(hit.object.parent);
+        }
     }
 });
 
+controls.addEventListener('unlock', () => {
+    if (currentMode === 'playing') {
+        currentMode = 'paused';
+        showMenu('pause-menu');
+        getEl('pause-menu').querySelector('h2').innerText = "PAUSED";
+        getEl('pause-menu').querySelector('h2').style.color = "gold";
+        
+        const btnResume = getEl('resume-btn');
+        btnResume.classList.remove('hidden');
+        btnResume.innerText = "▶ Resume";
+        btnResume.onclick = () => {
+            ui.menu.classList.add('hidden');
+            isWaitingForClick = true;
+            ui.overlay.style.display = 'block';
+            currentMode = 'waiting'; // Go to waiting first to let user click
+        };
+    }
+});
+
+// Main Menu
+getEl('mode-click-campaign-btn').onclick = () => prepareLevel(CLICK_LEVELS[0]);
+getEl('mode-track-campaign-btn').onclick = () => prepareLevel(TRACKING_LEVELS[0]);
+getEl('select-level-btn').onclick = () => {
+    showMenu('level-selection');
+    updateLevelGrid('click');
+};
+getEl('settings-btn').onclick = (e) => { e.stopPropagation(); showMenu('settings-panel'); };
+
+// Level Select
+getEl('tab-click').onclick = () => updateLevelGrid('click');
+getEl('tab-track').onclick = () => updateLevelGrid('track');
+getEl('back-to-main-btn').onclick = () => showMenu('mode-selection');
+
+function updateLevelGrid(mode) {
+    if (mode === 'click') { getEl('tab-click').classList.add('active'); getEl('tab-track').classList.remove('active'); }
+    else { getEl('tab-click').classList.remove('active'); getEl('tab-track').classList.add('active'); }
+    
+    const grid = ui.levelSel.querySelector('.level-grid');
+    grid.innerHTML = '';
+    const levels = mode === 'click' ? CLICK_LEVELS : TRACKING_LEVELS;
+    levels.forEach((lvl, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'level-btn';
+        const best = localStorage.getItem(`best_${lvl.id}`);
+        btn.innerText = `${i+1}. ${lvl.name} ${best ? `(${best}s)` : ''}`;
+        btn.onclick = () => prepareLevel(lvl);
+        grid.appendChild(btn);
+    });
+}
+
+// Pause / End
+getEl('restart-btn').onclick = () => prepareLevel(currentConfig);
+getEl('quit-btn').onclick = () => {
+    currentMode = 'menu';
+    ui.hud.classList.add('hidden');
+    showMenu('mode-selection');
+    if (animationId) cancelAnimationFrame(animationId);
+    targets.forEach(t => scene.remove(t));
+    targets = [];
+};
+
+// Settings inside game
+getEl('close-settings-btn').onclick = (e) => {
+    e.stopPropagation();
+    if (currentMode === 'menu') showMenu('mode-selection');
+    else showMenu('pause-menu');
+};
+getEl('sens-slider').oninput = (e) => {
+    controls.pointerSpeed = parseFloat(e.target.value);
+    getEl('sens-value').innerText = controls.pointerSpeed;
+    localStorage.setItem('aimTrainerSensitivity', controls.pointerSpeed);
+};
+
+// Add settings button to pause menu if missing
+if (!document.getElementById('pause-settings-btn')) {
+    const btn = document.createElement('button');
+    btn.id = 'pause-settings-btn';
+    btn.className = 'secondary-btn';
+    btn.innerText = '⚙️ Settings';
+    btn.style.marginTop = '10px';
+    btn.onclick = () => showMenu('settings-panel');
+    ui.pauseMenu.insertBefore(btn, getEl('quit-btn'));
+}
+
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-try {
-    const s = localStorage.getItem('aimTrainerSensitivity');
-    if(s) { controls.pointerSpeed = parseFloat(s); sensSlider.value = s; sensValueEl.innerText = s; }
-} catch(e){}
-
-function animate() {
-    requestAnimationFrame(animate);
-    if (!isPlaying || isPaused) return;
-
-    const time = performance.now();
-    const delta = (time - lastTime) / 1000;
-    lastTime = time;
-
-    timeLeft -= delta;
-    timerEl.innerText = timeLeft.toFixed(2);
-    if (timeLeft <= 0) {
-        timeLeft = 0;
-        endGame(false);
-        return;
-    }
-
-    const config = currentLevelConfig;
-
-    if (currentMode === 'track' && targets.length > 0) {
-        raycaster.setFromCamera(center, camera);
-        
-        const targetMeshes = [];
-        targets.forEach(g => targetMeshes.push(...g.children));
-        
-        const intersects = raycaster.intersectObjects(targetMeshes);
-        
-        if (intersects.length > 0) {
-            const hitMesh = intersects[0].object;
-            const t = hitMesh.parent; 
-            
-            let dmg = delta;
-            if (hitMesh.name === 'head') {
-                dmg *= 3; 
-                hitMesh.material.emissive.setHex(0xffffff); 
-            } else {
-                hitMesh.material.emissive.setHex(0x555555);
-            }
-
-            t.userData.hp -= dmg;
-            
-            const hpPct = t.userData.hp / t.userData.maxHp;
-            trackBarFill.style.width = `${Math.max(0, hpPct*100)}%`;
-            
-            const body = t.children.find(c => c.name === 'body');
-            if(body) {
-                 const hue = hpPct * 0.33; 
-                 body.material.color.setHSL(hue, 1, 0.5);
-            }
-
-            if (Math.random() < 0.2) {
-                 if (hitMesh.name === 'head') {
-                    // Reduce ping frequency for tracking, it can be annoying
-                 } else playSound('tick');
-            }
-            
-            if (t.userData.hp <= 0) destroyTarget(t);
-        } else {
-            targets.forEach(g => {
-                g.children.forEach(m => {
-                    if (m.name === 'head') m.material.emissive.setHex(0xff4400);
-                    else {
-                        // Body color updates based on HP directly.
-                    }
-                });
-            });
-        }
-
-        targets.forEach(t => {
-            const speed = config.speed;
-            const timeSec = time / 1000;
-            const tOffset = t.userData.timeOffset + timeSec;
-
-            if (config.behavior === 'track_linear') {
-                t.position.x = Math.sin(tOffset * speed * 0.5) * (SPAWN_AREA_WIDTH * 0.4);
-            } 
-            else if (config.behavior === 'track_sine') {
-                t.position.x = Math.sin(tOffset * speed * 0.5) * (SPAWN_AREA_WIDTH * 0.4);
-                t.position.y = Math.cos(tOffset * speed * 0.7) * (SPAWN_AREA_HEIGHT * 0.25) + SPAWN_Y_OFFSET;
-            }
-            else if (config.behavior === 'track_circle') {
-                t.position.x = Math.cos(tOffset * speed) * 8;
-                t.position.y = Math.sin(tOffset * speed) * 8 + SPAWN_Y_OFFSET;
-            }
-            else if (config.behavior === 'track_stopgo') {
-                t.userData.stateTimer -= delta;
-                if (t.userData.stateTimer <= 0) {
-                    if (t.userData.state === 'stop') {
-                        t.userData.state = 'move';
-                        t.userData.stateTimer = 0.5 + Math.random(); 
-                        const angle = Math.random() * Math.PI * 2;
-                        t.userData.velocity.set(Math.cos(angle), Math.sin(angle), 0).multiplyScalar(speed);
-                    } else {
-                        t.userData.state = 'stop';
-                        t.userData.stateTimer = 0.3 + Math.random() * 0.5;
-                        t.userData.velocity.set(0,0,0);
-                    }
-                }
-                t.position.addScaledVector(t.userData.velocity, delta);
-                const hw = SPAWN_AREA_WIDTH/2; const hh = SPAWN_AREA_HEIGHT/2;
-                if (t.position.x > hw || t.position.x < -hw) { t.userData.velocity.x *= -1; t.position.x = THREE.MathUtils.clamp(t.position.x, -hw, hw); }
-                if (t.position.y > hh+SPAWN_Y_OFFSET || t.position.y < -hh+SPAWN_Y_OFFSET) { t.userData.velocity.y *= -1; t.position.y = THREE.MathUtils.clamp(t.position.y, -hh+SPAWN_Y_OFFSET, hh+SPAWN_Y_OFFSET); }
-            }
-            else if (config.behavior === 'track_jitter') {
-                t.position.x = Math.sin(tOffset * speed * 0.3) * 10;
-                t.position.y = Math.cos(tOffset * speed * 0.2) * 5 + SPAWN_Y_OFFSET;
-                t.position.x += (Math.random() - 0.5) * 0.3;
-                t.position.y += (Math.random() - 0.5) * 0.3;
-            }
-            t.rotation.x += delta;
-            t.rotation.y += delta;
-        });
-    } else {
-        targets.forEach(t => {
-            if (config.behavior !== 'static') {
-                 if (config.behavior === 'chaos' && Math.random() < 0.02) {
-                    t.userData.velocity.x = (Math.random()-0.5) * config.speed * 2;
-                    t.userData.velocity.y = (Math.random()-0.5) * config.speed * 2;
-                }
-                t.position.addScaledVector(t.userData.velocity, delta);
-                const halfW = SPAWN_AREA_WIDTH / 2;
-                const halfH = SPAWN_AREA_HEIGHT / 2;
-                const topY = halfH + SPAWN_Y_OFFSET;
-                const bottomY = -halfH + SPAWN_Y_OFFSET;
-                if (t.position.x > halfW || t.position.x < -halfW) t.userData.velocity.x *= -1;
-                if (t.position.y > topY || t.position.y < bottomY) {
-                    t.userData.velocity.y *= -1;
-                    t.position.y = THREE.MathUtils.clamp(t.position.y, bottomY, topY);
-                }
-            }
-            if (config.behavior === 'shrink') {
-                 const scale = t.scale.x - (config.shrinkRate * delta);
-                 const s = scale > 0.2 ? scale : 0.2;
-                 t.scale.set(s,s,s);
-            }
-            t.rotation.x += delta;
-            t.rotation.y += delta;
-        });
-    }
-    renderer.render(scene, camera);
-}
-
-initMenu();
+// Start
+showMenu('mode-selection');
