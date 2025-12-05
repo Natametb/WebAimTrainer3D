@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Aim Trainer 3D</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+    <!-- Crosshair -->
+    <div id="crosshair"></div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+        <div class="hud-item">Mode: <span id="mode-display">Clicking</span></div>
+        <div class="hud-item">Time: <span id="timer">0.00</span>s</div>
+        <div class="hud-item">Best: <span id="best-time" style="color: gold;">-</span></div>
+        <div class="hud-item">Left: <span id="targets-left">0</span></div>
+    </div>
+
+    <!-- Tracking Bar (Hidden by default) -->
+    <div id="tracking-hud" class="hidden">
+        <div class="track-label">Target Health</div>
+        <div class="track-bar-bg">
+            <div id="track-bar-fill"></div>
+        </div>
+    </div>
+
+    <!-- Main Menu Overlay -->
+    <div id="menu">
+        <h1 id="game-title">Aim Trainer 3D</h1>
+        <h2 id="sub-title" style="color: #ccc; margin-top: 0;">Select Training Mode</h2>
+        
+        <!-- Mode Selection Buttons -->
+        <div id="mode-selection" class="menu-controls">
+            <button id="mode-click-campaign-btn" class="primary-btn">🎯 Click Timing Campaign</button>
+            <button id="mode-track-campaign-btn" class="primary-btn" style="background: linear-gradient(45deg, #ff8800, #ff0000);">🔥 Tracking Campaign</button>
+            <button id="select-level-btn" class="secondary-btn">Select Level</button>
+            <button id="settings-btn" class="secondary-btn">⚙️ Settings</button>
+        </div>
+
+        <!-- Level Selection - Hidden initially -->
+        <div id="level-selection" class="menu-controls hidden">
+            <div class="level-tabs">
+                <button id="tab-click" class="tab-btn active">🎯 Clicking</button>
+                <button id="tab-track" class="tab-btn">🔥 Tracking</button>
+            </div>
+            <div class="level-grid">
+                <button class="level-btn" data-level="0">1. Static</button>
+                <button class="level-btn" data-level="1">2. Moving</button>
+                <button class="level-btn" data-level="2">3. Bounce</button>
+                <button class="level-btn" data-level="3">4. Shrink</button>
+                <button class="level-btn" data-level="4">5. Chaos</button>
+            </div>
+            <button id="back-to-main-btn" class="secondary-btn">« Back</button>
+        </div>
+
+        <!-- In-Game Pause Menu - Hidden initially -->
+        <div id="pause-menu" class="menu-controls hidden">
+            <h2 style="color: gold;">PAUSED</h2>
+            <button id="resume-btn" class="primary-btn" style="background: linear-gradient(45deg, #00ff00, #008800);">▶ Resume</button>
+            <button id="restart-btn" class="secondary-btn">↺ Restart</button>
+            <button id="quit-btn" class="secondary-btn" style="border-color: #ff4444; color: #ff4444;">Exit to Menu</button>
+        </div>
+
+        <!-- Settings Panel -->
+        <div id="settings-panel" class="hidden">
+            <h3>Settings</h3>
+            <div class="setting-item">
+                <label for="sens-slider">Mouse Sensitivity: <span id="sens-value">1.0</span></label>
+                <input type="range" id="sens-slider" min="0.1" max="5.0" step="0.1" value="1.0">
+            </div>
+            <button id="close-settings-btn" class="secondary-btn">Close</button>
+        </div>
+    </div>
+
+    <script type="module" src="game.js"></script>
+</body>
+</html>

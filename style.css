@@ -1,0 +1,249 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #111;
+    color: white;
+    user-select: none;
+}
+
+#crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    background-color: #00ff00;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 0 6px #00ff00, 0 0 2px white;
+}
+
+#hud {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    font-size: 20px;
+    font-weight: bold;
+    z-index: 5;
+}
+
+.hud-item {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid #444;
+    min-width: 120px;
+    text-align: center;
+    backdrop-filter: blur(4px);
+}
+
+/* Tracking Bar */
+#tracking-hud {
+    position: absolute;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    z-index: 5;
+}
+
+.track-label {
+    font-size: 14px;
+    color: #ccc;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.track-bar-bg {
+    width: 400px;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #444;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+#track-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #ff0000, #ff8800);
+    width: 100%;
+    transition: width 0.1s linear;
+}
+
+#menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(10, 10, 15, 0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+}
+
+#game-title {
+    font-size: 60px;
+    margin-bottom: 5px;
+    color: #00ffff;
+    text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.menu-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    width: 100%;
+    max-width: 500px;
+}
+
+.primary-btn {
+    padding: 20px 0;
+    width: 100%;
+    font-size: 24px;
+    background: linear-gradient(45deg, #00ffff, #0088ff);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+    transition: all 0.2s;
+}
+
+.primary-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+    filter: brightness(1.1);
+}
+
+.secondary-btn {
+    padding: 12px 0;
+    width: 80%;
+    font-size: 18px;
+    background: transparent;
+    color: #00ffff;
+    border: 2px solid #00ffff;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.secondary-btn:hover {
+    background: rgba(0, 255, 255, 0.1);
+}
+
+/* Level Tabs */
+.level-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    width: 100%;
+    justify-content: center;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid #444;
+    color: #888;
+    font-size: 18px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    background: #00ffff;
+    color: #000;
+    border-color: #00ffff;
+    font-weight: bold;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.tab-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+/* Level Grid */
+.level-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.level-btn {
+    padding: 15px;
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid #00ffff;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.level-btn:hover {
+    background: #00ffff;
+    color: #000;
+}
+
+/* Settings Panel */
+#settings-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(20, 20, 30, 0.98);
+    padding: 40px;
+    border-radius: 15px;
+    border: 2px solid #444;
+    box-shadow: 0 0 50px black;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px;
+    min-width: 350px;
+    z-index: 100;
+}
+
+.setting-item {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+input[type=range] {
+    width: 100%;
+    cursor: pointer;
+}
+
+.hidden {
+    display: none !important;
+}
